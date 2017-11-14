@@ -1,0 +1,276 @@
+#! /bin/bash
+######################################################################
+##x```
+##|
+##|  ▄       ▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄        ▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄        ▄
+##| ▐░▌     ▐░▌▐░░░░░░░░░░░▌▐░░▌      ▐░▌▐░░░░░░░░░░░▌▐░░▌      ▐░▌
+##|  ▐░▌   ▐░▌ ▐░█▀▀▀▀▀▀▀▀▀ ▐░▌░▌     ▐░▌▐░█▀▀▀▀▀▀▀█░▌▐░▌░▌     ▐░▌
+##|   ▐░▌ ▐░▌  ▐░▌          ▐░▌▐░▌    ▐░▌▐░▌       ▐░▌▐░▌▐░▌    ▐░▌
+##|    ▐░▐░▌   ▐░█▄▄▄▄▄▄▄▄▄ ▐░▌ ▐░▌   ▐░▌▐░▌       ▐░▌▐░▌ ▐░▌   ▐░▌
+##|     ▐░▌    ▐░░░░░░░░░░░▌▐░▌  ▐░▌  ▐░▌▐░▌       ▐░▌▐░▌  ▐░▌  ▐░▌
+##|    ▐░▌░▌   ▐░█▀▀▀▀▀▀▀▀▀ ▐░▌   ▐░▌ ▐░▌▐░▌       ▐░▌▐░▌   ▐░▌ ▐░▌
+##|   ▐░▌ ▐░▌  ▐░▌          ▐░▌    ▐░▌▐░▌▐░▌       ▐░▌▐░▌    ▐░▌▐░▌
+##|  ▐░▌   ▐░▌ ▐░█▄▄▄▄▄▄▄▄▄ ▐░▌     ▐░▐░▌▐░█▄▄▄▄▄▄▄█░▌▐░▌     ▐░▐░▌
+##| ▐░▌     ▐░▌▐░░░░░░░░░░░▌▐░▌      ▐░░▌▐░░░░░░░░░░░▌▐░▌      ▐░░▌
+##|  ▀       ▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀        ▀▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀        ▀▀
+##x```
+##|--------------------------------------------------------------------
+##x## What is xenon?
+##x
+##x Xenon (`xe`) is a tool to assist in organizing pentest data.
+##x
+##x ![Screenshot](assets/screenshot-2017-11-05-03-31am.png)
+##x
+##| `xe` uses the following emoji 🏴 🎃 💀 🐚 🔑 📄
+##| If you can't see them you should install an emoji font
+##x
+##|--------------------------------------------------------------------
+##|## Actions
+##--------------------------------------------------------------------
+# .
+# ├── hosts
+# │   └── 127.0.0.1
+# │       ├── loot
+# │       │   └── passwords
+# │       └── recon
+# ├── README.md
+# └── scope_ips
+#
+# 5 directories, 2 files
+##|### info
+##|  print out an overall summary of hosts/networks discovered
+##x
+function info_action {
+  echo ---------------------------------------------------------------------
+  _print_host_table | column -t
+  echo ---------------------------------------------------------------------
+  echo Pwnd $(find $XENON_HOST_ROOT -name proof.txt | wc -l)/$(find $XENON_HOST_ROOT -maxdepth 1 -type d | tail -n +2 | wc -l)
+}
+
+##
+##|### create host
+##|  create host
+##x
+function create_host_action {
+  mkdir -p $XENON_HOST_ROOT/$HOSTNAME/loot/passwords $XENON_HOST_ROOT/$HOSTNAME/recon
+}
+
+##
+##|### create op
+##|  create op
+##x
+function create_op_action {
+  mkdir -p $XENON_OPS_ROOT/$OPNAME/hosts
+  touch $XENON_OPS_ROOT/$OPNAME/hosts/scope_ips
+  echo "# $OPNAME" > $XENON_OPS_ROOT/$OPNAME/README.md
+  echo 'XENON_PROJECT_ROOT=`readlink -f $(pwd)"/hosts/"`' > $XENON_OPS_ROOT/$OPNAME/.xenon-op.rc
+}
+
+##
+##|### list ops
+##|  list ops
+##x
+function ops_action {
+  ls $XENON_OPS_ROOT | column -t
+}
+
+##
+##|### search
+##|  search for pattern(s)
+##xHOSTNAME
+function search_action {
+  _search
+}
+
+##
+##|### recon
+##|  rcn for pattern(s)
+##x
+function recon_action {
+
+  if [ ! -d ./recon ]; then
+    echo "[-] no recon dir :/"
+  fi
+  main() {
+    if [ -f hostname ]; then
+      figlet -f smslant `cat hostname`
+    else
+      figlet -f smslant $(basename $(pwd))
+    fi
+
+
+    shopt -s nullglob
+    FILES=`echo {recon/ssh*,recon/*.nmap,recon/nikto*,recon/enum4*,loot/lp*,recon/snmp*,recon/*.out}`
+
+    for f in $FILES; do
+      echo -n '## '
+      basename $f
+
+      echo
+      cat $f
+      echo '----------------'
+    done
+    if [ -f recon/nmap-punched.xml ]; then
+      searchsploit --nmap recon/nmap-punched.xml
+    fi
+  }
+  main | less -X
+}
+
+##
+##|### warp
+##|  warp to host
+##x
+function warp_action {
+  first=$(realpath $(dirname `grep -riP $QUERY $XENON_HOST_ROOT/*/*/hostname | cut -d ':' -f 1`))
+  if [ -d $first ]; then
+    echo $first
+  fi
+}
+
+
+function help_action {
+  if [ -z $MARKDOWN ]; then
+    cat $0 | grep -v "##x" | sed 's/##|[#]\+\?/##/g' | egrep -a --color  '^##[\*#\|-]+?'
+    exit 1
+  fi
+
+  cat $0 | egrep -a '^##[x\|]' | sed 's/##[x|]//g'
+  exit 1
+}
+
+ACTION="info_action"
+  ##
+  ##|--------------------------------------------------------------------
+  ##|## Options
+  ##--------------------------------------------------------------------
+while [[ $# -gt 0 ]] ; do
+  key="$1"
+  case $key in
+    info|help|recon|ops)
+      ACTION="${1}_action"
+      ;;
+    rcn)
+      ACTION="recon_action"
+      ;;
+    -q)
+      SEARCH=$SEARCH'(\b'$2'\b)'
+      shift
+      ;;
+    -n)
+      # no proof
+      PROOF=0
+      ;;
+    -Nh)
+      ACTION="create_host_action"
+      HOSTNAME=$2
+      shift
+      ;;
+    -No)
+      ACTION="create_op_action"
+      OPNAME=$2
+      shift
+      ;;
+    -p)
+      # proof
+      PROOF=1
+      ;;
+    -w)
+      SEARCH=windows
+      ;;
+    -h)
+      ACTION='help_action'
+      ;;
+    ##
+    ##|### -m | --markdown
+    ##x
+    ##|  generate markdown (only used on the help action)
+    -m | --markdown)
+      MARKDOWN=1
+      ;;
+    warp)
+      ACTION="${1}_action"
+      while [[ $# -gt 0 ]] ; do
+        if [ ! -z $2 ]; then
+          if [ ! -z $QUERY ]; then
+            QUERY="$QUERY|"
+          fi
+          QUERY=$QUERY'(\b'$2'\b)'
+        fi
+        shift
+      done
+      ;;
+  esac
+  shift # past argument or value
+done
+
+#------
+# private methods
+
+set -e
+
+if [ -z $XENON_ROOT ]; then
+  path=`pwd`
+  while [[ $path != / ]]; do
+    if [ -f $path/.xenon.rc ]; then
+      cd $path
+      source .xenon.rc
+      cd - 1> /dev/null
+      break
+    fi
+    path="$(readlink -f "$path"/..)"
+  done
+fi
+
+path=`pwd`
+while [[ $path != / ]]; do
+  if [ -f $path/.xenon-op.rc ]; then
+    cd $path
+    source .xenon-op.rc
+    cd - 1> /dev/null
+    break
+  fi
+  path="$(readlink -f "$path"/..)"
+done
+
+if [ -z $XENON_HOST_ROOT ]; then
+  XENON_HOST_ROOT=`pwd`/hosts
+  echo defaulting XENON_HOST_ROOT to $XENON_HOST_ROOT
+fi
+
+PWND=`find $XENON_HOST_ROOT -name proof.txt`
+PWND_COUNT=`echo "$PWND" | wc -l`
+
+function _print_host_table {
+    echo "IP Hostname Proof Local Exploit Shell Passwds Docs"
+    for host in `ls $XENON_HOST_ROOT`; do
+      hostid=$(( 100000 * `echo $host | cut -d. -f 1` +  10000 * `echo $host | cut -d. -f 2` + 1000 * `echo $host | cut -d. -f 3` + `echo $host | cut -d. -f4` ))
+      host_path="$XENON_HOST_ROOT/$host"
+      hostname="-"
+
+      [ -f $host_path/hostname ] && hostname=`cat $host_path/hostname`
+      hattrs=(- - - - - -)
+      [ -f $host_path/loot/proof.txt ] && hattrs[0]=🏴
+      [ -f $host_path/loot/local.txt ] && hattrs[1]=🎃
+      [ -f $host_path/exploit.sh ] && hattrs[2]=💀
+      [ -f $host_path/shell.sh ] && hattrs[3]=🐚
+      [[ -f $host_path/loot/shadow || -f $host_path/loot/ntlm || -f $host_path/loot/mimikatz || -f $host_path/loot/pwdump ]] && hattrs[4]=🔑
+      [ -f $host_path/README.md ] && hattrs[5]=📄
+
+      COLOR=""
+      ECHO=0
+      [ -L $host_path ] && COLOR="\e[2m"
+      if [ ! -z $SEARCH ]; then
+        [ $(grep -riP $SEARCH $host_path/recon/*.nmap 2>/dev/null | wc -l ) -gt 0 ] && ECHO=1
+      else
+        [[ $PROOF -eq 0 && ! -f $host_path/loot/proof.txt || $PROOF -eq 1 &&  -f $host_path/loot/proof.txt || -z $PROOF ]] && ECHO=1
+      fi
+      [ $ECHO -eq 1 ] && echo -e "${hostid}:${COLOR}${host} ${hostname} ${hattrs[*]}\e[0m"
+    done | sort | cut -d: -f2
+}
+
+type "$ACTION" 1>/dev/null || exit 1
+$ACTION
+exit
+##--------------------------------------------------------------------
+######################################################################
