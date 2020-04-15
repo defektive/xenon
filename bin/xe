@@ -33,8 +33,9 @@
 # │       ├── loot
 # │       │   └── passwords
 # │       └── recon
+# ├── recon
 # ├── README.md
-# └── scope_ips
+# └── scope-ips.txt
 #
 # 5 directories, 2 files
 ##|### info
@@ -77,7 +78,7 @@ function ops_action {
 ##
 ##|### search
 ##|  search for pattern(s)
-##xHOSTNAME
+##x
 function search_action {
   _search
 }
@@ -91,13 +92,15 @@ function recon_action {
   if [ ! -d ./recon ]; then
     echo "[-] no recon dir :/"
   fi
-  main() {
-    if [ -f hostname ]; then
-      figlet -f smslant `cat hostname`
-    else
-      figlet -f smslant $(basename $(pwd))
-    fi
 
+  {
+
+    if [ -f hostname ]; then
+      name=$(cat hostname)
+    else
+      name=$(basename $(pwd))
+    fi
+    which figlet 2>&1 > /dev/null && figlet -f smslant $name || echo $name
 
     shopt -s nullglob
     FILES=`echo {recon/ssh*,recon/*.nmap,recon/nikto*,recon/enum4*,loot/lp*,recon/snmp*,recon/*.out}`
@@ -113,8 +116,7 @@ function recon_action {
     if [ -f recon/nmap-punched.xml ]; then
       searchsploit --nmap recon/nmap-punched.xml
     fi
-  }
-  main | less -X
+  } | less -X
 }
 
 ##
