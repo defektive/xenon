@@ -43,7 +43,7 @@
 ##x
 function info_action {
   echo ---------------------------------------------------------------------
-  _print_host_table | column -t
+  ls $XENON_HOST_ROOT | _print_host_table "$SEARCH" | column -t
   echo ---------------------------------------------------------------------
   echo Pwnd $(find $XENON_HOST_ROOT -name proof.txt | wc -l)/$(find $XENON_HOST_ROOT -maxdepth 1 -type d | tail -n +2 | wc -l)
 }
@@ -80,7 +80,7 @@ function ops_action {
 ##|  search for pattern(s)
 ##x
 function search_action {
-  _search
+  _search "$SEARCH" | _print_host_table | column -t
 }
 
 ##
@@ -149,14 +149,17 @@ ACTION="info_action"
 while [[ $# -gt 0 ]] ; do
   key="$1"
   case $key in
-    info|help|recon|ops)
+    info|help|recon|ops|search)
       ACTION="${1}_action"
       ;;
     rcn)
       ACTION="recon_action"
       ;;
     -q)
-      SEARCH=$SEARCH'(\b'$2'\b)'
+      if [ ! -z "$SEARCH" ]; then
+        SEARCH="$SEARCH|"
+      fi
+      SEARCH="$2"
       shift
       ;;
     -n)
@@ -244,9 +247,14 @@ PWND=`find $XENON_HOST_ROOT -name proof.txt`
 PWND_COUNT=`echo "$PWND" | wc -l`
 
 function _print_host_table {
+    if [ ! -z "$1" ]; then
+      SEARCH="$1"
+    else
+      SEARCH=""
+    fi
     echo "IP Hostname Proof Local Exploit Shell Passwds Docs"
-    for host in `ls $XENON_HOST_ROOT`; do
-      hostid=$(( 100000 * `echo $host | cut -d. -f 1` +  10000 * `echo $host | cut -d. -f 2` + 1000 * `echo $host | cut -d. -f 3` + `echo $host | cut -d. -f4` ))
+    while read host; do
+      hostid=$(( 100000 * `echo "$host" | cut -d. -f 1` +  10000 * `echo "$host" | cut -d. -f 2` + 1000 * `echo "$host" | cut -d. -f 3` + `echo "$host" | cut -d. -f4` ))
       host_path="$XENON_HOST_ROOT/$host"
       hostname="-"
 
@@ -262,13 +270,22 @@ function _print_host_table {
       COLOR=""
       ECHO=0
       [ -L $host_path ] && COLOR="\e[2m"
-      if [ ! -z $SEARCH ]; then
+      if [ ! -z "$SEARCH" ]; then
         [ $(grep -riP $SEARCH $host_path/recon/*.nmap 2>/dev/null | wc -l ) -gt 0 ] && ECHO=1
       else
         [[ $PROOF -eq 0 && ! -f $host_path/loot/proof.txt || $PROOF -eq 1 &&  -f $host_path/loot/proof.txt || -z $PROOF ]] && ECHO=1
       fi
       [ $ECHO -eq 1 ] && echo -e "${hostid}:${COLOR}${host} ${hostname} ${hattrs[*]}\e[0m"
     done | sort | cut -d: -f2
+}
+
+function _search {
+  MY_SEARCH="$1"
+  grep -l -riP "$MY_SEARCH" "$XENON_HOST_ROOT" \
+  | grep gnmap \
+  | sed 's|'"$XENON_HOST_ROOT"'||g' \
+  | awk -F/ '{print $2}' \
+  | sort -u
 }
 
 type "$ACTION" 1>/dev/null || exit 1
