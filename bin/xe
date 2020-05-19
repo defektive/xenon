@@ -100,7 +100,78 @@ function recon_action {
     else
       name=$(basename $(pwd))
     fi
-    which figlet 2>&1 > /dev/null && figlet -f smslant $name || echo $name
+
+    which figlet 2>&1 > /dev/null && figlet -f smslant $(echo $name|cut -d. -f1) -w 150 || echo "imagine big letters"
+
+    echo
+    {
+    rhost
+    if [ -f hostname ]; then
+       cat hostname
+    fi
+    if [ -f cert-domains.txt ]; then
+       cat cert-domains.txt
+    fi
+    } | sort -u | sed 's/^/\t/g'
+
+    echo
+    echo ---------------
+    echo "## Active Checks"
+
+    hostname_matches=0
+    has_hostname=0
+    if [ -f hostname ]; then
+	    has_hostname=1
+        if [ "$(rhost)" != "$(host $(cat hostname) | awk '{print $4}' )" ] ; then
+            echo '[!] hostname does not point to this IP'
+	else
+	    hostname_matches=1
+        fi
+    fi
+
+
+    user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:75.0) Gecko/20100101 Firefox/75.0"
+    host_header="host: localhost"
+    if [ $has_hostname -eq 1 ]; then
+	    host_header="host: $(cat hostname)"
+    fi
+    if grep 80/tcp recon/nmap-punched.nmap > /dev/null ; then
+	    if [[ ! -f curl-http-$(rhost).txt || ! -s curl-http-$(rhost).txt ]] ; then
+		    curl -A "$user_agent" -H "$host_header" --connect-timeout 5 -skiL http://$(rhost) > curl-http-$(rhost).txt || echo '!! http connection failed !!'
+	    fi
+	    echo "http://$(rhost) "
+	    if [ $has_hostname -eq 1 ]; then
+		    echo "http://$(cat hostname) "
+	    fi
+    fi
+
+    if  grep 443/tcp recon/nmap-punched.nmap > /dev/null ; then
+	    if [[ ! -f curl-https-$(rhost).txt || ! -s curl-https-$(rhost).txt ]] ; then
+		    curl -A "$user_agent" -H "$host_header" --connect-timeout 5 -skiL https://$(rhost) > curl-https-$(rhost).txt || echo '!! https connection failed !!'
+	    fi
+	    echo "https://$(rhost) "
+	    if [ $has_hostname -eq 1 ]; then
+		    echo "https://$(cat hostname) "
+	    fi
+    fi
+
+    echo
+    echo ---------------
+    echo
+
+    if [ -f README.md ]; then
+       cat README.md
+    fi
+    echo
+    echo ---------------
+    echo
+
+
+    cat curl-*.txt 2>/dev/null
+    echo
+    echo ---------------
+    echo
+
 
     shopt -s nullglob
     FILES=`echo {recon/ssh*,recon/*.nmap,recon/nikto*,recon/enum4*,loot/lp*,recon/snmp*,recon/*.out}`
@@ -114,7 +185,7 @@ function recon_action {
       echo '----------------'
     done
     if [ -f recon/nmap-punched.xml ]; then
-      searchsploit --nmap recon/nmap-punched.xml
+      which searchsploit 2>&1 >/dev/null && searchsploit --nmap recon/nmap-punched.xml || echo "install searchsploit for mor magic 🧙"
     fi
   } | less -X
 }
@@ -160,6 +231,20 @@ while [[ $# -gt 0 ]] ; do
         SEARCH="$SEARCH|"
       fi
       SEARCH="$2"
+      shift
+      ;;
+    -f)
+      if [ ! -z "$FILTER" ]; then
+        FILTER="$FILTER|"
+      fi
+      FILTER="$2"
+      shift
+      ;;
+    -nf)
+      if [ ! -z "$NFILTER" ]; then
+        NFILTER="$NFILTER|"
+      fi
+      NFILTER="$2"
       shift
       ;;
     -n)
@@ -246,12 +331,24 @@ fi
 PWND=`find $XENON_HOST_ROOT -name proof.txt`
 PWND_COUNT=`echo "$PWND" | wc -l`
 
+function _row_neg_filter () {
+    if [ ! -z "$NFILTER" ]; then
+	grep -vP '$NFILTER'
+else
+
+	    cat
+    fi
+}
+
 function _print_host_table {
     if [ ! -z "$1" ]; then
       SEARCH="$1"
     else
       SEARCH=""
     fi
+
+
+    echo $row_filter
     echo "IP Hostname Proof Local Exploit Shell Passwds Docs"
     while read host; do
       hostid=$(( 100000 * `echo "$host" | cut -d. -f 1` +  10000 * `echo "$host" | cut -d. -f 2` + 1000 * `echo "$host" | cut -d. -f 3` + `echo "$host" | cut -d. -f4` ))
@@ -266,6 +363,9 @@ function _print_host_table {
       [ -f $host_path/shell.sh ] && hattrs[3]=🐚
       [[ -f $host_path/loot/shadow || -f $host_path/loot/ntlm || -f $host_path/loot/mimikatz || -f $host_path/loot/pwdump ]] && hattrs[4]=🔑
       [ -f $host_path/README.md ] && hattrs[5]=📄
+      [ -f $host_path/NO_PORTS ] && hattrs[5]="${hattrs[5]}!"
+      [ -f $host_path/BAD_SCAN ] && hattrs[5]="${hattrs[5]}?"
+      [ -f $host_path/TCPWRAPPED ] && hattrs[5]="${hattrs[5]}@"
 
       COLOR=""
       ECHO=0
@@ -276,15 +376,14 @@ function _print_host_table {
         [[ $PROOF -eq 0 && ! -f $host_path/loot/proof.txt || $PROOF -eq 1 &&  -f $host_path/loot/proof.txt || -z $PROOF ]] && ECHO=1
       fi
       [ $ECHO -eq 1 ] && echo -e "${hostid}:${COLOR}${host} ${hostname} ${hattrs[*]}\e[0m"
-    done | sort | cut -d: -f2
+    done | sort | cut -d: -f2 | _row_neg_filter
 }
 
 function _search {
   MY_SEARCH="$1"
   grep -l -riP "$MY_SEARCH" "$XENON_HOST_ROOT" \
-  | grep gnmap \
   | sed 's|'"$XENON_HOST_ROOT"'||g' \
-  | awk -F/ '{print $2}' \
+  | awk -F/ '{print $1}' \
   | sort -u
 }
 
