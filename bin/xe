@@ -348,6 +348,9 @@ function _print_host_table {
     echo $row_filter
     echo "IP Hostname Proof Local Exploit Shell Passwds Docs"
     while read host; do
+      if [[ ! -d $host ]]; then
+        continue
+      fi
       hostid=$(( 100000 * `echo "$host" | cut -d. -f 1` +  10000 * `echo "$host" | cut -d. -f 2` + 1000 * `echo "$host" | cut -d. -f 3` + `echo "$host" | cut -d. -f4` ))
       host_path="$XENON_HOST_ROOT/$host"
       hostname="-"
