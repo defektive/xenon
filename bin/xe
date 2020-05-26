@@ -328,9 +328,6 @@ if [ -z $XENON_HOST_ROOT ]; then
   echo defaulting XENON_HOST_ROOT to $XENON_HOST_ROOT
 fi
 
-PWND=`find $XENON_HOST_ROOT -name proof.txt`
-PWND_COUNT=`echo "$PWND" | wc -l`
-
 function _row_neg_filter () {
     if [ ! -z "$NFILTER" ]; then
 	grep -vP '$NFILTER'
