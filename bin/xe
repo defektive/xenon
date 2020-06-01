@@ -38,8 +38,9 @@
 # └── scope-ips.txt
 #
 # 5 directories, 2 files
-##|### info
-##|  print out an overall summary of hosts/networks discovered
+##|### Print info
+##|  |#|xe [info] [-q host_query]|#|
+##|  Print out an overall summary of hosts/networks discovered
 ##x
 function info_action {
   echo ---------------------------------------------------------------------
@@ -49,16 +50,32 @@ function info_action {
 }
 
 ##
-##|### create host
-##|  create host
+##|### Create host
+##|  |#|xe -Nh hostname|#|
+##|  Create the following directory structure in the $XENON_HOST_ROOT directory
+##|    $XENON_HOST_ROOT
+##|    └── hostname
+##|        ├── loot
+##|        │   └── passwords
+##|        └── recon
 ##x
 function create_host_action {
   mkdir -p $XENON_HOST_ROOT/$HOSTNAME/loot/passwords $XENON_HOST_ROOT/$HOSTNAME/recon
 }
 
 ##
-##|### create op
-##|  create op
+##|### Create op
+##|  |#|xe -No opname|#|
+##|  Create the following directory structure in the $XENON_OPS_ROOT directory
+##|    $XENON_OPS_ROOT
+##|    └── opname
+##|        ├── apps
+##|        ├── docs
+##|        ├── findings
+##|        ├── hosts
+##|        ├── recon
+##|        ├── README.md
+##|        └── scope-ips.txt
 ##x
 function create_op_action {
   mkdir -p $XENON_OPS_ROOT/$OPNAME/{recon,hosts,docs,apps,findings}
@@ -68,16 +85,19 @@ function create_op_action {
 }
 
 ##
-##|### list ops
-##|  list ops
+##|### List ops
+##|  |#|xe ops|#|
+##|  List all ops in the $XENON_OPS_ROOT directory
 ##x
 function ops_action {
   ls $XENON_OPS_ROOT | column -t
 }
 
 ##
-##|### search
-##|  search for pattern(s)
+##|### Search
+##|  |#|xe search -q pattern(s)|#|
+##|  Search for pattern(s) within all files for each host. The host info will
+##|  be displayed for each host that has files which match the specified pattern(s)
 ##x
 function search_action {
   _search "$SEARCH" | _print_host_table | column -t
@@ -204,11 +224,14 @@ function warp_action {
 
 function help_action {
   if [ -z $MARKDOWN ]; then
-    cat $0 | grep -v "##x" | sed 's/##|[#]\+\?/##/g' | egrep -a --color  '^##[\*#\|-]+?'
+    cat $0 | grep -v "##x" | sed 's/##|[#]\+\?/##/g' \
+    | egrep -a --color=always '^##[\*#\|-]+?' \
+    | GREP_COLOR='1;34' grep -a --color=always '|#|.*|#|$\|$' \
+    | sed 's/|#|//g'
     exit 1
   fi
 
-  cat $0 | egrep -a '^##[x\|]' | sed 's/##[x|]//g'
+  cat $0 | egrep -a '^##[x\|]' | sed 's/##[x|]//g;s/|#|//g'
   exit 1
 }
 
@@ -384,7 +407,7 @@ function _print_host_table {
 function _search {
   MY_SEARCH="$1"
   grep -l -riP "$MY_SEARCH" "$XENON_HOST_ROOT" \
-  | sed 's|'"$XENON_HOST_ROOT"'||g' \
+  | sed "s|$XENON_HOST_ROOT/||g" \
   | awk -F/ '{print $1}' \
   | sort -u
 }
