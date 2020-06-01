@@ -216,7 +216,11 @@ function recon_action {
 function warp_action {
   first=$XENON_OPS_ROOT
   if [[ -n $QUERY ]]; then
-    first=$(realpath $(dirname `grep -riP $QUERY $XENON_HOST_ROOT/*/hostname | cut -d ':' -f 1`))
+    first=`grep -riP $QUERY $XENON_HOST_ROOT/*/hostname | cut -d ':' -f 1`
+    if [[ -z "$first" ]]; then
+      exit 1
+    fi
+    first=$(realpath $(dirname $first))
   fi
 
   if [ -d $first ]; then
