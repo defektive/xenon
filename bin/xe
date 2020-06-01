@@ -214,7 +214,11 @@ function recon_action {
 ##|  warp to host
 ##x
 function warp_action {
-  first=$(realpath $(dirname `grep -riP $QUERY $XENON_HOST_ROOT/*/*/hostname | cut -d ':' -f 1`))
+  first=$XENON_OPS_ROOT
+  if [[ -n $QUERY ]]; then
+    first=$(realpath $(dirname `grep -riP $QUERY $XENON_HOST_ROOT/*/hostname | cut -d ':' -f 1`))
+  fi
+
   if [ -d $first ]; then
     echo $first
   fi
