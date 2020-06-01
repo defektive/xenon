@@ -360,9 +360,8 @@ fi
 
 function _row_neg_filter () {
     if [ ! -z "$NFILTER" ]; then
-	grep -vP '$NFILTER'
-else
-
+	    grep -vP "$NFILTER"
+    else
 	    cat
     fi
 }
