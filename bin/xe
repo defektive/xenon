@@ -79,9 +79,8 @@ function create_host_action {
 ##x
 function create_op_action {
   mkdir -p $XENON_OPS_ROOT/$OPNAME/{recon,hosts,docs,apps,findings}
-  touch $XENON_OPS_ROOT/$OPNAME/hosts/scope-ips.txt
+  touch $XENON_OPS_ROOT/$OPNAME/scope-ips.txt
   echo "# $OPNAME" > $XENON_OPS_ROOT/$OPNAME/README.md
-  echo 'XENON_PROJECT_ROOT=`readlink -f $(pwd)"/hosts/"`' > $XENON_OPS_ROOT/$OPNAME/.xenon-op.rc
 }
 
 ##
